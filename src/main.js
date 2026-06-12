@@ -384,8 +384,13 @@ function setupTouch() {
   bind('trge', () => { inp.pressed.special = true; });
   bind('tuse', () => { inp.pressed.use = true; });
   bind('tblk', () => { inp.held.block = true; }, () => { inp.held.block = false; });
+  bind('tpause', () => { if (G.state === 'playing') setState('paused'); });
 }
 if (isTouch) setupTouch();
+
+// tappable potion icons (touch has no 1/2 keys; desktop pointer-lock ignores these)
+document.querySelectorAll('#potions .potion')[0].addEventListener('click', () => { inp.pressed.potion1 = true; });
+document.querySelectorAll('#potions .potion')[1].addEventListener('click', () => { inp.pressed.potion2 = true; });
 
 // ---------------------------------------------------------------------------
 // menu / screen wiring
