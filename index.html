@@ -9,9 +9,11 @@
     --gold:#d4af37; --blood:#8a1518; --bone:#cfc5ae; --steel:#7d8a99;
     --rare:#3d7dd8; --epic:#9b4dd8; --leg:#e8862a;
   }
-  *{margin:0;padding:0;box-sizing:border-box;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-user-select:none;user-select:none;
+    -webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
   html,body{width:100%;height:100%;overflow:hidden;background:#05060a;font-family:Georgia,'Times New Roman',serif;color:var(--bone)}
-  canvas{display:block}
+  canvas{display:block;touch-action:none}
+  #app,#touch,.tbtn,#joy{touch-action:none}
   .hidden{display:none !important}
 
   /* ---------- overlays ---------- */

@@ -74,6 +74,7 @@ G.save = new SaveSys(G);
 G.player = new Player(G);
 
 const isTouch = 'ontouchstart' in window && navigator.maxTouchPoints > 0;
+if (isTouch) renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)); // phone GPUs: favor frame rate
 
 // ---------------------------------------------------------------------------
 // state transitions
@@ -476,8 +477,11 @@ function refreshContinue() {
 }
 refreshContinue();
 
-// first interaction anywhere boots audio (autoplay policy)
-window.addEventListener('pointerdown', () => G.audio.init(), { once: true });
+// any interaction boots/resumes audio (autoplay policy, mobile app-switching)
+window.addEventListener('pointerdown', () => G.audio.init());
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && G.audio.ctx && G.audio.ctx.state === 'suspended') G.audio.ctx.resume();
+});
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
