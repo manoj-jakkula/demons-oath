@@ -88,13 +88,29 @@ export class LevelManager {
     this.obstacles.length = 0;
     this.torches.length = 0;
 
-    G.scene.fog = new THREE.FogExp2(ch.fog, 0.030);
-    G.scene.background = new THREE.Color(ch.sky);
+    // player-selected world theme overrides the chapter palette/props
+    const theme = G.cfg.themes[G.settings.theme] || null;
+    const pal = theme || ch;
+    const style = theme ? theme.props : ['village', 'forest', 'citadel'][this.chapterIndex];
+
+    // light mode: lift the palette into daylight
+    const lightMode = G.settings.light === 'light';
+    G.applyLighting(lightMode);
+    let skyC = pal.sky, fogC = pal.fog, groundC = pal.ground, dens = pal.fogDensity || 0.026;
+    if (lightMode) {
+      skyC = new THREE.Color(pal.sky).lerp(new THREE.Color(0xaecdf0), 0.8).getHex();
+      fogC = new THREE.Color(pal.fog).lerp(new THREE.Color(0xc4d6e2), 0.75).getHex();
+      groundC = new THREE.Color(pal.ground).lerp(new THREE.Color(0x6f9a50), 0.5).getHex();
+      dens = 0.008;
+    }
+
+    G.scene.fog = new THREE.FogExp2(fogC, dens);
+    G.scene.background = new THREE.Color(skyC);
 
     const mat = (c, opt = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.95, ...opt });
 
     // ground
-    const ground = new THREE.Mesh(new THREE.CircleGeometry(R + 14, 48), mat(ch.ground));
+    const ground = new THREE.Mesh(new THREE.CircleGeometry(R + 14, 48), mat(groundC));
     ground.rotation.x = -Math.PI / 2;
     grp.add(ground);
 
@@ -113,7 +129,7 @@ export class LevelManager {
 
     const addObstacle = (x, z, r) => this.obstacles.push({ x, z, r });
 
-    if (this.chapterIndex === 0) {
+    if (style === 'village') {
       // cursed village: ruined houses + fences
       const wallM = mat(0x3a332b), roofM = mat(0x241f1a);
       for (let k = 0; k < 6; k++) {
@@ -136,9 +152,9 @@ export class LevelManager {
       well.position.set(7, 0.5, 6);
       grp.add(well);
       addObstacle(7, 6, 1.5);
-    } else if (this.chapterIndex === 1) {
+    } else if (style === 'forest') {
       // blackroot forest: gnarled trees
-      const trunkM = mat(0x231b14), leafM = mat(0x12241a);
+      const trunkM = mat(0x35271a), leafM = mat(0x1f4228);
       for (let k = 0; k < 16; k++) {
         const a = Math.random() * Math.PI * 2;
         const rr = R * (0.55 + Math.random() * 0.38);
@@ -186,7 +202,7 @@ export class LevelManager {
       }
     }
 
-    // torches around the arena (flame mesh + up to 5 real lights)
+    // torches around the arena (flame mesh + up to 5 real lights; sun replaces them in light mode)
     const postM = mat(0x1f1a14);
     for (let k = 0; k < 5; k++) {
       const a = (k / 5) * Math.PI * 2 + 1.1;
@@ -196,10 +212,52 @@ export class LevelManager {
       const flame = new THREE.Mesh(new THREE.SphereGeometry(0.16, 6, 5),
         new THREE.MeshBasicMaterial({ color: 0xffa030 }));
       flame.position.set(x, 2.75, z);
-      const light = new THREE.PointLight(0xff8c30, 5, 13, 1.8);
-      light.position.set(x, 2.9, z);
-      grp.add(post, flame, light);
+      grp.add(post, flame);
+      let light = null;
+      if (!lightMode) {
+        light = new THREE.PointLight(0xff8c30, 5, 13, 1.8);
+        light.position.set(x, 2.9, z);
+        grp.add(light);
+      }
       this.torches.push({ flame, light, seed: Math.random() * 10 });
+    }
+
+    // light mode: lush dressing — grass, flowers, circling birds
+    this.birds = [];
+    if (lightMode) {
+      const dummy = new THREE.Object3D();
+      const grass = new THREE.InstancedMesh(
+        new THREE.ConeGeometry(0.07, 0.55, 4),
+        new THREE.MeshStandardMaterial({ color: 0x4e7d36, roughness: 1 }), 240);
+      for (let i = 0; i < 240; i++) {
+        const a = Math.random() * Math.PI * 2, rr = Math.sqrt(Math.random()) * (R + 8);
+        dummy.position.set(Math.cos(a) * rr, 0.22, Math.sin(a) * rr);
+        dummy.rotation.set((Math.random() - 0.5) * 0.5, Math.random() * 3, (Math.random() - 0.5) * 0.5);
+        dummy.scale.setScalar(0.6 + Math.random() * 1.1);
+        dummy.updateMatrix();
+        grass.setMatrixAt(i, dummy.matrix);
+      }
+      grp.add(grass);
+      const flowerM = [0xe8d44d, 0xd86a9a, 0xe0e6f0].map((c) => new THREE.MeshBasicMaterial({ color: c }));
+      const flowerG = new THREE.SphereGeometry(0.09, 5, 4);
+      for (let i = 0; i < 40; i++) {
+        const a = Math.random() * Math.PI * 2, rr = Math.sqrt(Math.random()) * (R + 5);
+        const f = new THREE.Mesh(flowerG, flowerM[i % 3]);
+        f.position.set(Math.cos(a) * rr, 0.32, Math.sin(a) * rr);
+        grp.add(f);
+      }
+      const wingG = new THREE.PlaneGeometry(0.55, 0.16);
+      const birdM = new THREE.MeshBasicMaterial({ color: 0x2a2f38, side: THREE.DoubleSide });
+      for (let i = 0; i < 6; i++) {
+        const b = new THREE.Group();
+        const wl = new THREE.Mesh(wingG, birdM); wl.position.x = -0.28;
+        const wr = new THREE.Mesh(wingG, birdM); wr.position.x = 0.28;
+        b.add(wl, wr);
+        grp.add(b);
+        this.birds.push({ grp: b, wl, wr, a: Math.random() * Math.PI * 2,
+          r: 10 + Math.random() * 16, h: 13 + Math.random() * 7,
+          spd: 0.12 + Math.random() * 0.15, ph: Math.random() * 9 });
+      }
     }
   }
 
@@ -215,6 +273,7 @@ export class LevelManager {
     this.group = null;
     this.chest = null;
     this.shrine = null;
+    this.birds = [];
   }
 
   // ---- hazards ----------------------------------------------------------------
@@ -307,6 +366,7 @@ export class LevelManager {
     this.group.add(shrine);
     this.shrine = shrine; this.shrineGem = gem;
     this.G.ui.banner('Sanctuary', 'claim the spoils — pray to face the horror beyond');
+    this.G.ui.updateWave();
   }
 
   spawnBoss() {
@@ -316,6 +376,7 @@ export class LevelManager {
     G.enemies.active.push(boss);
     this.checkpoint = 'boss';
     G.save.autoSave();
+    G.ui.updateWave();
   }
 
   onBossDeath() {
@@ -332,8 +393,19 @@ export class LevelManager {
     // torch flicker
     for (const t of this.torches) {
       const f = 0.8 + Math.sin(G.time * 11 + t.seed * 7) * 0.18 + Math.sin(G.time * 23 + t.seed) * 0.12;
-      t.light.intensity = 5 * f;
+      if (t.light) t.light.intensity = 5 * f;
       t.flame.scale.setScalar(0.8 + f * 0.35);
+    }
+
+    // birds circling overhead (light mode)
+    if (this.birds) {
+      for (const b of this.birds) {
+        b.a += b.spd * dt;
+        b.grp.position.set(Math.cos(b.a) * b.r, b.h + Math.sin(G.time * 0.7 + b.ph) * 1.2, Math.sin(b.a) * b.r);
+        b.grp.rotation.y = -b.a;
+        const flap = Math.sin(G.time * 9 + b.ph) * 0.55;
+        b.wl.rotation.y = flap; b.wr.rotation.y = -flap;
+      }
     }
     if (this.shrineGem) this.shrineGem.rotation.y += dt * 1.5;
 

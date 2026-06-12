@@ -141,6 +141,8 @@ export class UI {
     else if (this.interactMsg) prompt = this.interactMsg;
     this.el.prompt.textContent = prompt;
     this.el.prompt.style.display = prompt ? 'block' : 'none';
+    const tuse = document.getElementById('tuse');
+    if (tuse) tuse.classList.toggle('glow', !!prompt);
     this.interactMsg = '';
 
     // banner fade

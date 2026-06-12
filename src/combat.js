@@ -98,6 +98,7 @@ export function hitPlayer(G, source, rawDmg, { unblockable = false, kb = 0, isZo
       G.stats.parries++;
       G.vfx.parryFlash(p.mesh.position);
       G.audio.parry();
+      if (G.haptic) G.haptic(25);
       G.freeze = Math.max(G.freeze, cp.hitstopParry);
       G.shake += 0.25;
       p.gainRage(14);
@@ -138,6 +139,7 @@ export function hitPlayer(G, source, rawDmg, { unblockable = false, kb = 0, isZo
   G.ui.hurtPulse();
   G.vfx.blood(p.mesh.position);
   G.audio.hurt();
+  if (G.haptic) G.haptic(40);
   G.shake += 0.3;
   if (kb && source) {
     const d = dirTo(source.pos, p.pos);

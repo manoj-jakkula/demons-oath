@@ -94,7 +94,8 @@
   .btn:hover{border-color:var(--gold);color:#ffe9b0;box-shadow:0 0 18px rgba(212,175,55,.25);transform:translateY(-1px)}
   .btn.small{min-width:0;padding:7px 16px;font-size:12px}
   .btn.danger:hover{border-color:#b03030;color:#ff9a8a;box-shadow:0 0 18px rgba(176,48,48,.3)}
-  .diffrow{display:flex;gap:8px;margin-bottom:20px}
+  .rowlabel{font-size:10px;letter-spacing:4px;color:#6e6657;text-transform:uppercase;margin-bottom:6px}
+  .diffrow{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;justify-content:center}
   .diff{min-width:0;padding:9px 20px;font-size:12px;opacity:.65}
   .diff.sel{opacity:1;border-color:var(--gold);color:#ffe9b0;box-shadow:0 0 14px rgba(212,175,55,.3)}
   .hint{font-size:12px;color:#6e6657;margin-top:26px;letter-spacing:1px;line-height:1.9;text-align:center}
@@ -139,20 +140,47 @@
   .gearlist{font-size:12px;line-height:2;letter-spacing:1px;margin:12px 0;color:#a89d84;column-count:2;column-gap:30px;min-width:380px}
   .gearlist .r0{color:#cfc5ae}.gearlist .r1{color:var(--rare)}.gearlist .r2{color:#b06ee8}.gearlist .r3{color:var(--leg)}
 
-  /* touch controls */
+  /* touch controls — vmin sizing + safe-area anchoring so rotation can't break layout */
   #touch{position:fixed;inset:0;z-index:15;display:none;pointer-events:none}
-  #joy{position:absolute;left:36px;bottom:46px;width:128px;height:128px;border:2px solid rgba(207,197,174,.25);border-radius:50%;pointer-events:auto}
-  #joyknob{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:rgba(207,197,174,.22);border:1px solid rgba(207,197,174,.4)}
-  .tbtn{position:absolute;width:64px;height:64px;border-radius:50%;pointer-events:auto;border:2px solid rgba(207,197,174,.3);
-    background:rgba(20,16,12,.55);color:#d9cfb4;font-size:11px;letter-spacing:1px;display:flex;align-items:center;justify-content:center;font-family:inherit}
-  .tbtn:active{background:rgba(212,175,55,.3)}
-  #tatk{right:34px;bottom:120px;width:78px;height:78px}
-  #thvy{right:124px;bottom:60px}
-  #tdge{right:34px;bottom:230px}
-  #tblk{right:130px;bottom:160px}
-  #trge{right:222px;bottom:96px;width:54px;height:54px}
-  #tuse{right:120px;bottom:262px;width:54px;height:54px}
-  #tpause{right:18px;top:96px;bottom:auto;width:44px;height:44px;font-size:13px}
+  #joy{position:fixed;display:none;width:26vmin;height:26vmin;max-width:150px;max-height:150px;
+    border:2px solid rgba(207,197,174,.3);border-radius:50%;pointer-events:none;
+    background:radial-gradient(circle,rgba(20,16,12,.25),rgba(20,16,12,.05))}
+  #joyknob{position:absolute;left:50%;top:50%;width:42%;height:42%;margin:-21% 0 0 -21%;border-radius:50%;
+    background:rgba(207,197,174,.3);border:1px solid rgba(207,197,174,.5);box-shadow:0 2px 8px rgba(0,0,0,.5)}
+  .tbtn{position:absolute;border-radius:50%;pointer-events:auto;border:2px solid rgba(207,197,174,.35);
+    background:rgba(15,12,10,.55);color:#e3d8bd;font-size:clamp(9px,2vmin,14px);letter-spacing:1px;
+    display:flex;align-items:center;justify-content:center;font-family:inherit;
+    box-shadow:0 2px 10px rgba(0,0,0,.5),inset 0 0 12px rgba(0,0,0,.35)}
+  .tbtn:active{background:rgba(212,175,55,.35);transform:scale(.94)}
+  .tbtn.glow{border-color:#ffd970;color:#ffe9b0;box-shadow:0 0 20px rgba(255,200,80,.7);animation:pulse 1s infinite}
+  #tatk{width:17vmin;height:17vmin;right:calc(3.5vmin + env(safe-area-inset-right));bottom:calc(13vmin + env(safe-area-inset-bottom));
+    border-color:rgba(212,175,55,.55);font-size:clamp(10px,2.3vmin,16px)}
+  #tdge{width:13vmin;height:13vmin;right:calc(21vmin + env(safe-area-inset-right));bottom:calc(5vmin + env(safe-area-inset-bottom))}
+  #thvy{width:12vmin;height:12vmin;right:calc(22.5vmin + env(safe-area-inset-right));bottom:calc(20vmin + env(safe-area-inset-bottom))}
+  #tblk{width:12vmin;height:12vmin;right:calc(4vmin + env(safe-area-inset-right));bottom:calc(32.5vmin + env(safe-area-inset-bottom))}
+  #trge{width:10vmin;height:10vmin;right:calc(34vmin + env(safe-area-inset-right));bottom:calc(11vmin + env(safe-area-inset-bottom))}
+  #tuse{width:11vmin;height:11vmin;right:calc(18vmin + env(safe-area-inset-right));bottom:calc(33.5vmin + env(safe-area-inset-bottom))}
+  #tpause{width:9vmin;height:9vmin;min-width:40px;min-height:40px;right:calc(2vmin + env(safe-area-inset-right));
+    top:calc(15vmin + env(safe-area-inset-top));bottom:auto;font-size:12px}
+
+  /* touch-device HUD adjustments */
+  @media (pointer:coarse){
+    .potion{width:58px;height:58px}
+    .potion .icon{font-size:22px}
+    #potions{left:calc(16px + env(safe-area-inset-left));bottom:auto;top:118px}
+    #lockon-tip{display:none}
+    .barwrap{left:calc(16px + env(safe-area-inset-left))}
+  }
+
+  /* rotate-device hint (portrait phones) */
+  #rotate{display:none}
+  @media (orientation:portrait){
+    body.touch #rotate{display:flex;position:fixed;inset:0;z-index:55;pointer-events:none;
+      background:rgba(5,5,8,.94);flex-direction:column;align-items:center;justify-content:center;gap:14px}
+  }
+  #rotate .ic{font-size:54px;animation:spinhint 2.4s ease-in-out infinite}
+  #rotate span{letter-spacing:3px;font-size:14px;color:#cfc5ae;text-align:center;line-height:1.8;text-transform:uppercase}
+  @keyframes spinhint{0%,20%{transform:rotate(0)}60%,100%{transform:rotate(90deg)}}
 
   @media (max-width:760px){
     .barwrap{width:200px}
@@ -204,15 +232,29 @@
     <button class="tbtn" id="tuse">USE</button>
     <button class="tbtn" id="tpause">| |</button>
   </div>
+  <div id="rotate"><div class="ic">&#128241;</div><span>Rotate your device<br/>landscape plays best</span></div>
 
   <!-- main menu -->
   <div id="menu" class="screen">
     <h1 class="title">Demon's Oath</h1>
     <div class="sub">a tale of steel and damnation</div>
+    <div class="rowlabel">difficulty</div>
     <div class="diffrow">
       <button class="btn diff sel" data-d="normal">Normal</button>
       <button class="btn diff" data-d="knight">Knight</button>
       <button class="btn diff" data-d="demon">Demon</button>
+    </div>
+    <div class="rowlabel">world</div>
+    <div class="diffrow">
+      <button class="btn diff sel" data-t="auto">Story</button>
+      <button class="btn diff" data-t="forest">Forest</button>
+      <button class="btn diff" data-t="village">Village</button>
+      <button class="btn diff" data-t="citadel">Citadel</button>
+    </div>
+    <div class="rowlabel">lighting</div>
+    <div class="diffrow">
+      <button class="btn diff sel" data-l="dark">&#127769; Dark</button>
+      <button class="btn diff" data-l="light">&#9728; Light</button>
     </div>
     <button class="btn" id="btn-start">Begin the Oath</button>
     <button class="btn" id="btn-continue">Continue</button>

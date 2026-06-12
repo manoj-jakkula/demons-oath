@@ -135,9 +135,17 @@ export const CONFIG = {
     },
   },
 
+  // selectable world looks; props: which prop set to build. 'auto' follows the story.
+  themes: {
+    forest:   { props: 'forest',  fog: 0x23402c, ground: 0x2c4530, sky: 0x27482f, fogDensity: 0.024 },
+    village:  { props: 'village', fog: 0x2a3450, ground: 0x33403a, sky: 0x2c3a55, fogDensity: 0.026 },
+    citadel:  { props: 'citadel', fog: 0x33191b, ground: 0x33201f, sky: 0x2e1512, fogDensity: 0.028 },
+    daylight: { props: 'forest',  fog: 0x8aa3b8, ground: 0x49663c, sky: 0x9db8d8, fogDensity: 0.012 },
+  },
+
   chapters: [
     {
-      name: 'Chapter I', title: 'Cursed Village', fog: 0x131722, ground: 0x232a26, sky: 0x1a2030,
+      name: 'Chapter I', title: 'Cursed Village', fog: 0x252e48, ground: 0x303c36, sky: 0x2a3850,
       waves: [
         [{ t: 'ghoul', n: 2 }],
         [{ t: 'ghoul', n: 3 }, { t: 'knight', n: 1 }],
@@ -146,7 +154,7 @@ export const CONFIG = {
       miniboss: 'knight', boss: 'abbot',
     },
     {
-      name: 'Chapter II', title: 'Blackroot Forest', fog: 0x101a14, ground: 0x1b241c, sky: 0x14201a,
+      name: 'Chapter II', title: 'Blackroot Forest', fog: 0x1f3a28, ground: 0x28402c, sky: 0x24422c,
       waves: [
         [{ t: 'ghoul', n: 3 }, { t: 'cultist', n: 1 }],
         [{ t: 'wraith', n: 2 }, { t: 'ghoul', n: 2 }],
@@ -155,7 +163,7 @@ export const CONFIG = {
       miniboss: 'brute', boss: 'wraithQueen',
     },
     {
-      name: 'Chapter III', title: 'Demon Citadel', fog: 0x1c1012, ground: 0x241b1b, sky: 0x200f0e,
+      name: 'Chapter III', title: 'Demon Citadel', fog: 0x301719, ground: 0x32201f, sky: 0x2c1411,
       waves: [
         [{ t: 'knight', n: 2 }, { t: 'brute', n: 1 }],
         [{ t: 'wraith', n: 2 }, { t: 'cultist', n: 2 }, { t: 'ghoul', n: 2 }],

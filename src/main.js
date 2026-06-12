@@ -29,10 +29,24 @@ const canvas = renderer.domElement;
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(CONFIG.camera.fov, window.innerWidth / window.innerHeight, 0.1, 220);
 
-scene.add(new THREE.HemisphereLight(0x55608a, 0x241c14, 1.7));
+const hemi = new THREE.HemisphereLight(0x55608a, 0x241c14, 1.7);
+scene.add(hemi);
 const moon = new THREE.DirectionalLight(0x9db4dd, 1.5);
 moon.position.set(-14, 26, -10);
 scene.add(moon);
+
+// dark = gothic night (default) / light = bright sunny day
+function applyLighting(light) {
+  if (light) {
+    hemi.color.set(0xd4e4ff); hemi.groundColor.set(0x5a6b42); hemi.intensity = 2.9;
+    moon.color.set(0xfff1cf); moon.intensity = 3.4;
+    renderer.toneMappingExposure = 1.12;
+  } else {
+    hemi.color.set(0x55608a); hemi.groundColor.set(0x241c14); hemi.intensity = 1.7;
+    moon.color.set(0x9db4dd); moon.intensity = 1.5;
+    renderer.toneMappingExposure = 1.35;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // global game context
@@ -46,7 +60,7 @@ const G = {
   lockTarget: null, finisherTarget: null, boss: null,
   meta: { gold: 0, xp: 0, level: 1, skillPoints: 0, weaponUp: 0, gear: {}, potions: { hp: 3, rage: 1 } },
   stats: null,
-  settings: { volume: 0.7, sensitivity: 1, shake: true },
+  settings: { volume: 0.7, sensitivity: 1, shake: true, theme: 'auto', light: 'dark' },
   input: {
     keys: {},
     held: { block: false },
@@ -263,12 +277,14 @@ function cycleLockOn() {
 
 function maintainLockOn(dt) {
   const t = G.lockTarget;
+  let retarget = false;
   if (t && (!t.alive || t.untargetable ||
       Math.hypot(t.pos.x - G.player.pos.x, t.pos.z - G.player.pos.z) > 26)) {
     G.lockTarget = null;
+    retarget = !t.alive; // your target died: snap to the next threat
   }
-  // touch: auto lock nearest
-  if (isTouch && !G.lockTarget) {
+  // touch: auto lock nearest; desktop: auto-retarget after a kill
+  if ((isTouch || retarget) && !G.lockTarget) {
     let best = null, bd = 18;
     for (const e of G.enemies.active) {
       if (!e.alive || e.untargetable) continue;
@@ -301,6 +317,24 @@ function maintainLockOn(dt) {
 // ---------------------------------------------------------------------------
 // camera
 // ---------------------------------------------------------------------------
+// gold reticle under the locked enemy
+const lockRing = new THREE.Mesh(
+  new THREE.RingGeometry(0.55, 0.68, 28),
+  new THREE.MeshBasicMaterial({ color: 0xd4af37, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false }));
+lockRing.rotation.x = -Math.PI / 2;
+lockRing.visible = false;
+scene.add(lockRing);
+
+function updateLockRing(dt) {
+  const t = G.lockTarget;
+  if (t && t.alive && !t.untargetable) {
+    lockRing.visible = true;
+    lockRing.position.set(t.pos.x, 0.08, t.pos.z);
+    lockRing.scale.setScalar(t.radius * 1.8 + 0.6);
+    lockRing.rotation.z += dt * 1.8;
+  } else lockRing.visible = false;
+}
+
 const camTargetV = new THREE.Vector3();
 let camDist = CONFIG.camera.dist;
 
@@ -342,42 +376,71 @@ function updateCamera(dt) {
 // touch controls
 // ---------------------------------------------------------------------------
 function setupTouch() {
+  document.body.classList.add('touch');
   const joy = document.getElementById('joy');
   const knob = document.getElementById('joyknob');
-  let joyId = null;
-  const setKnob = (dx, dy) => {
-    knob.style.transform = `translate(${dx * 36}px, ${dy * 36}px)`;
+  let joyId = null, camId = null;
+  let baseX = 0, baseY = 0, lastCX = 0, lastCY = 0;
+  const knobMax = () => joy.offsetWidth * 0.3;
+  const setKnob = (dx, dy) => { knob.style.transform = `translate(${dx * knobMax()}px, ${dy * knobMax()}px)`; };
+  const endJoy = () => {
+    joyId = null;
+    inp.joy.active = false; inp.joy.x = 0; inp.joy.y = 0;
+    joy.style.display = 'none';
   };
-  joy.addEventListener('touchstart', (e) => {
-    joyId = e.changedTouches[0].identifier;
-    inp.joy.active = true;
-    e.preventDefault();
-  }, { passive: false });
-  window.addEventListener('touchmove', (e) => {
+
+  // floating joystick on the left half, camera swipe on the right half
+  canvas.addEventListener('touchstart', (e) => {
+    if (G.state !== 'playing') return;
     for (const t of e.changedTouches) {
-      if (t.identifier !== joyId) continue;
-      const r = joy.getBoundingClientRect();
-      let dx = (t.clientX - (r.left + r.width / 2)) / (r.width / 2);
-      let dy = (t.clientY - (r.top + r.height / 2)) / (r.height / 2);
-      const l = Math.hypot(dx, dy);
-      if (l > 1) { dx /= l; dy /= l; }
-      inp.joy.x = dx; inp.joy.y = dy;
-      setKnob(dx, dy);
-    }
-  }, { passive: true });
-  window.addEventListener('touchend', (e) => {
-    for (const t of e.changedTouches) {
-      if (t.identifier === joyId) {
-        joyId = null;
-        inp.joy.active = false; inp.joy.x = 0; inp.joy.y = 0;
+      if (t.clientX < window.innerWidth * 0.45 && joyId === null) {
+        joyId = t.identifier;
+        baseX = t.clientX; baseY = t.clientY;
+        joy.style.display = 'block';
+        const half = joy.offsetWidth / 2;
+        joy.style.left = (baseX - half) + 'px';
+        joy.style.top = (baseY - half) + 'px';
+        inp.joy.active = true; inp.joy.x = 0; inp.joy.y = 0;
         setKnob(0, 0);
+      } else if (camId === null) {
+        camId = t.identifier;
+        lastCX = t.clientX; lastCY = t.clientY;
       }
     }
-  });
+    e.preventDefault();
+  }, { passive: false });
+
+  window.addEventListener('touchmove', (e) => {
+    for (const t of e.changedTouches) {
+      if (t.identifier === joyId) {
+        let dx = (t.clientX - baseX) / 48, dy = (t.clientY - baseY) / 48;
+        const l = Math.hypot(dx, dy);
+        if (l > 1) { dx /= l; dy /= l; }
+        inp.joy.x = dx; inp.joy.y = dy;
+        setKnob(dx, dy);
+      } else if (t.identifier === camId && G.state === 'playing') {
+        const s = G.settings.sensitivity;
+        G.camYaw -= (t.clientX - lastCX) * 0.006 * s;
+        G.camPitch += (t.clientY - lastCY) * 0.0045 * s;
+        G.camPitch = Math.max(CONFIG.camera.minPitch, Math.min(CONFIG.camera.maxPitch, G.camPitch));
+        lastCX = t.clientX; lastCY = t.clientY;
+      }
+    }
+  }, { passive: true });
+
+  const onEnd = (e) => {
+    for (const t of e.changedTouches) {
+      if (t.identifier === joyId) endJoy();
+      if (t.identifier === camId) camId = null;
+    }
+  };
+  window.addEventListener('touchend', onEnd);
+  window.addEventListener('touchcancel', onEnd);
+
   const bind = (id, fn, up) => {
     const el = document.getElementById(id);
     el.addEventListener('touchstart', (e) => { fn(); e.preventDefault(); }, { passive: false });
-    if (up) el.addEventListener('touchend', up);
+    if (up) { el.addEventListener('touchend', up); el.addEventListener('touchcancel', up); }
   };
   bind('tatk', () => { inp.pressed.light = true; });
   bind('thvy', () => { inp.pressed.heavy = true; });
@@ -389,6 +452,9 @@ function setupTouch() {
 }
 if (isTouch) setupTouch();
 
+// haptic feedback (Android; silently ignored elsewhere)
+G.haptic = (ms) => { if (isTouch && navigator.vibrate) try { navigator.vibrate(ms); } catch (e) {} };
+
 // tappable potion icons (touch has no 1/2 keys; desktop pointer-lock ignores these)
 document.querySelectorAll('#potions .potion')[0].addEventListener('click', () => { inp.pressed.potion1 = true; });
 document.querySelectorAll('#potions .potion')[1].addEventListener('click', () => { inp.pressed.potion2 = true; });
@@ -398,14 +464,31 @@ document.querySelectorAll('#potions .potion')[1].addEventListener('click', () =>
 // ---------------------------------------------------------------------------
 const $ = (id) => document.getElementById(id);
 
-for (const btn of document.querySelectorAll('.diff')) {
+for (const btn of document.querySelectorAll('.diff[data-d]')) {
   btn.addEventListener('click', () => {
-    for (const b of document.querySelectorAll('.diff')) b.classList.remove('sel');
+    for (const b of document.querySelectorAll('.diff[data-d]')) b.classList.remove('sel');
     btn.classList.add('sel');
     G.difficulty = btn.dataset.d;
     G.audio.init(); G.audio.uiClick();
   });
 }
+for (const btn of document.querySelectorAll('.diff[data-t]')) {
+  btn.addEventListener('click', () => {
+    for (const b of document.querySelectorAll('.diff[data-t]')) b.classList.remove('sel');
+    btn.classList.add('sel');
+    G.settings.theme = btn.dataset.t;
+    G.audio.init(); G.audio.uiClick();
+  });
+}
+for (const btn of document.querySelectorAll('.diff[data-l]')) {
+  btn.addEventListener('click', () => {
+    for (const b of document.querySelectorAll('.diff[data-l]')) b.classList.remove('sel');
+    btn.classList.add('sel');
+    G.settings.light = btn.dataset.l;
+    G.audio.init(); G.audio.uiClick();
+  });
+}
+G.applyLighting = applyLighting;
 
 $('btn-start').addEventListener('click', () => startRun());
 $('btn-continue').addEventListener('click', () => {
@@ -480,14 +563,20 @@ refreshContinue();
 // any interaction boots/resumes audio (autoplay policy, mobile app-switching)
 window.addEventListener('pointerdown', () => G.audio.init());
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && G.audio.ctx && G.audio.ctx.state === 'suspended') G.audio.ctx.resume();
+  if (document.hidden) {
+    if (G.state === 'playing') setState('paused'); // real-game behavior: auto-pause
+  } else if (G.audio.ctx && G.audio.ctx.state === 'suspended') G.audio.ctx.resume();
 });
 
-window.addEventListener('resize', () => {
+function onResize() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
-});
+}
+window.addEventListener('resize', onResize);
+// mobile browsers report stale dimensions right after rotating — re-measure late
+window.addEventListener('orientationchange', () => { setTimeout(onResize, 120); setTimeout(onResize, 450); });
+if (window.visualViewport) window.visualViewport.addEventListener('resize', onResize);
 
 // ---------------------------------------------------------------------------
 // fixed-timestep loop
@@ -500,6 +589,7 @@ function update(dt) {
   G.time += dt;
   computeMove();
   maintainLockOn(dt);
+  updateLockRing(dt);
   G.player.update(dt);
   G.enemies.update(dt);
   G.level.update(dt);
