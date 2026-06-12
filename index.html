@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>DEMON'S OATH</title>
+<style>
+  :root{
+    --gold:#d4af37; --blood:#8a1518; --bone:#cfc5ae; --steel:#7d8a99;
+    --rare:#3d7dd8; --epic:#9b4dd8; --leg:#e8862a;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+  html,body{width:100%;height:100%;overflow:hidden;background:#05060a;font-family:Georgia,'Times New Roman',serif;color:var(--bone)}
+  canvas{display:block}
+  .hidden{display:none !important}
+
+  /* ---------- overlays ---------- */
+  #vignette{position:fixed;inset:0;pointer-events:none;z-index:5;
+    background:radial-gradient(ellipse at center,transparent 52%,rgba(0,0,0,.55) 100%)}
+  #hurtvig{position:fixed;inset:0;pointer-events:none;z-index:6;opacity:0;transition:opacity .25s;
+    background:radial-gradient(ellipse at center,transparent 45%,rgba(150,10,10,.5) 100%)}
+  #flash{position:fixed;inset:0;pointer-events:none;z-index:7;opacity:0;background:#fff}
+
+  /* ---------- HUD ---------- */
+  #hud{position:fixed;inset:0;pointer-events:none;z-index:10;display:none}
+  .barwrap{position:absolute;left:24px;top:22px;width:300px}
+  .bar{height:14px;background:rgba(8,8,12,.75);border:1px solid #3a3530;margin-bottom:5px;position:relative;
+    box-shadow:0 0 8px rgba(0,0,0,.7)}
+  .bar .fill{position:absolute;inset:1px;transform-origin:left;transition:transform .08s linear}
+  #hpfill{background:linear-gradient(#b5252b,#6e1013)}
+  #hpghost{position:absolute;inset:1px;background:rgba(255,210,160,.55);transform-origin:left;transition:transform .6s ease .25s}
+  #stambar{height:9px;width:78%}
+  #stamfill{background:linear-gradient(#3f9b4f,#1f5e2c)}
+  #ragebar{height:9px;width:64%}
+  #ragefill{background:linear-gradient(#ff9a2a,#c44a08)}
+  #ragebar.full{box-shadow:0 0 12px #ff8c1a;border-color:#ffae4d}
+  .label{font-size:10px;letter-spacing:2px;color:#9c937e;text-transform:uppercase}
+  #stats-line{position:absolute;left:24px;top:86px;font-size:13px;color:#bdb49b;text-shadow:0 1px 3px #000}
+  #stats-line b{color:var(--gold)}
+  #potions{position:absolute;left:24px;bottom:24px;display:flex;gap:10px}
+  .potion{width:46px;height:46px;border:1px solid #4a443c;background:rgba(10,10,14,.8);border-radius:4px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;position:relative}
+  .potion .icon{font-size:18px;line-height:1}
+  .potion .cnt{position:absolute;bottom:1px;right:4px;font-size:11px;color:var(--gold)}
+  .potion .key{position:absolute;top:-8px;left:-6px;background:#211e19;border:1px solid #56503f;font-size:9px;padding:1px 4px;border-radius:3px;color:#cfc5ae}
+  #wavecounter{position:absolute;right:26px;top:22px;text-align:right;font-size:14px;letter-spacing:1px;text-shadow:0 1px 4px #000}
+  #wavecounter .ch{color:var(--gold);font-size:12px;letter-spacing:3px;text-transform:uppercase}
+  #lockon-tip{position:absolute;right:26px;top:66px;font-size:11px;color:#7a7264}
+
+  /* boss bar */
+  #bossbar{position:absolute;left:50%;transform:translateX(-50%);top:34px;width:min(620px,70vw);display:none;text-align:center}
+  #bossname{font-size:17px;letter-spacing:5px;text-transform:uppercase;color:#e8dcc0;text-shadow:0 0 12px rgba(180,30,30,.8),0 2px 4px #000;margin-bottom:5px}
+  #bossbar .bar{height:13px;border-color:#5e1715}
+  #bossfill{background:linear-gradient(#c8362c,#5c0d0d)}
+  #bossphase{font-size:10px;color:#a3471f;letter-spacing:3px;margin-top:3px}
+
+  /* prompts / banners */
+  #prompt{position:absolute;left:50%;top:60%;transform:translateX(-50%);font-size:17px;letter-spacing:2px;
+    color:#ffd970;text-shadow:0 0 14px rgba(255,150,40,.8),0 2px 4px #000;display:none;animation:pulse 1s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
+  #banner{position:absolute;left:0;right:0;top:26%;text-align:center;pointer-events:none;opacity:0;transition:opacity .5s}
+  #banner h1{font-size:42px;letter-spacing:10px;font-weight:normal;color:#e6dabb;text-shadow:0 0 24px rgba(200,150,60,.45),0 3px 8px #000;text-transform:uppercase}
+  #banner h2{font-size:15px;letter-spacing:6px;color:#9c5b2f;margin-top:6px;text-transform:uppercase}
+  #toasts{position:absolute;left:50%;transform:translateX(-50%);bottom:120px;display:flex;flex-direction:column-reverse;align-items:center;gap:6px}
+  .toast{background:rgba(12,10,8,.85);border:1px solid #45403a;padding:6px 18px;font-size:13px;letter-spacing:1px;
+    border-radius:3px;animation:toastin .25s ease;box-shadow:0 4px 14px rgba(0,0,0,.6)}
+  @keyframes toastin{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
+  .toast.r1{color:var(--rare);border-color:#27497d}
+  .toast.r2{color:#c08aef;border-color:#5e3380}
+  .toast.r3{color:#ffa84d;border-color:#8a5318;text-shadow:0 0 10px rgba(255,140,30,.5)}
+
+  /* damage numbers / enemy bars */
+  #numbers,#ebars{position:fixed;inset:0;pointer-events:none;z-index:9;overflow:hidden}
+  .dmg{position:absolute;font-size:17px;font-weight:bold;color:#f2ead2;text-shadow:0 2px 3px #000,0 0 6px rgba(255,120,60,.35);
+    transform:translate(-50%,-50%);will-change:transform,opacity}
+  .dmg.crit{color:var(--gold);font-size:25px;text-shadow:0 0 12px rgba(255,200,60,.9),0 2px 3px #000}
+  .dmg.heal{color:#6fdc7a}.dmg.blocked{color:#8b97a8;font-size:13px}.dmg.player{color:#e0524d}
+  .ebar{position:absolute;width:54px;height:5px;background:rgba(0,0,0,.75);border:1px solid #333;transform:translate(-50%,-50%)}
+  .ebar .f{height:100%;background:#a8262b;transform-origin:left}
+  .ebar .n{position:absolute;top:-15px;left:50%;transform:translateX(-50%);font-size:10px;white-space:nowrap;color:#d8cdb2;text-shadow:0 1px 2px #000;letter-spacing:1px}
+
+  /* ---------- screens ---------- */
+  .screen{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:radial-gradient(ellipse at 50% 35%,rgba(34,20,16,.92),rgba(5,5,8,.97) 75%)}
+  .screen h1.title{font-size:clamp(40px,8vw,76px);letter-spacing:14px;font-weight:normal;color:#e3d6b4;
+    text-shadow:0 0 30px rgba(190,60,20,.55),0 0 80px rgba(190,60,20,.3),0 4px 10px #000;text-transform:uppercase}
+  .screen .sub{letter-spacing:6px;color:#8a5a33;font-size:13px;margin:8px 0 36px;text-transform:uppercase}
+  .btn{pointer-events:auto;cursor:pointer;background:linear-gradient(rgba(40,32,24,.9),rgba(22,17,13,.95));
+    border:1px solid #5c5240;color:#d9cfb4;padding:11px 38px;font-family:inherit;font-size:15px;letter-spacing:3px;
+    text-transform:uppercase;margin:5px;border-radius:2px;transition:all .15s;min-width:240px}
+  .btn:hover{border-color:var(--gold);color:#ffe9b0;box-shadow:0 0 18px rgba(212,175,55,.25);transform:translateY(-1px)}
+  .btn.small{min-width:0;padding:7px 16px;font-size:12px}
+  .btn.danger:hover{border-color:#b03030;color:#ff9a8a;box-shadow:0 0 18px rgba(176,48,48,.3)}
+  .diffrow{display:flex;gap:8px;margin-bottom:20px}
+  .diff{min-width:0;padding:9px 20px;font-size:12px;opacity:.65}
+  .diff.sel{opacity:1;border-color:var(--gold);color:#ffe9b0;box-shadow:0 0 14px rgba(212,175,55,.3)}
+  .hint{font-size:12px;color:#6e6657;margin-top:26px;letter-spacing:1px;line-height:1.9;text-align:center}
+  .hint b{color:#b9ad8e}
+
+  /* pause / settings */
+  #pause .panel,#smith .panel,#skillsui .panel{background:rgba(14,12,10,.96);border:1px solid #4a4234;padding:30px 40px;
+    border-radius:4px;box-shadow:0 10px 60px rgba(0,0,0,.8);max-height:86vh;overflow-y:auto;pointer-events:auto}
+  .panel h2{letter-spacing:6px;font-weight:normal;color:#dccfa9;text-transform:uppercase;margin-bottom:18px;text-align:center;font-size:22px}
+  .setrow{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:10px 0;font-size:13px;letter-spacing:1px}
+  .setrow input[type=range]{width:160px;accent-color:var(--gold)}
+  .setrow input[type=checkbox]{accent-color:var(--gold);width:16px;height:16px}
+
+  /* skill tree */
+  #skillsui .branches{display:flex;gap:26px}
+  .branch{display:flex;flex-direction:column;align-items:center;gap:8px}
+  .branch h3{font-size:13px;letter-spacing:3px;text-transform:uppercase;margin-bottom:4px}
+  .branch.w h3{color:#d86a3a}.branch.g h3{color:#6a9dd8}.branch.s h3{color:#c4583a; color:#d8b13a}
+  .node{width:150px;border:1px solid #3c3830;background:rgba(22,19,15,.9);padding:8px;border-radius:3px;cursor:pointer;
+    font-size:11px;text-align:center;transition:all .12s;position:relative}
+  .node .nm{font-size:12px;color:#d8cdb0;letter-spacing:1px;display:block;margin-bottom:3px}
+  .node .ds{color:#857c69;line-height:1.35}
+  .node.learned{border-color:var(--gold);background:rgba(54,42,20,.9);box-shadow:0 0 10px rgba(212,175,55,.25)}
+  .node.learned .nm{color:#ffe2a0}
+  .node.avail:hover{border-color:#b9ad8e;transform:scale(1.04)}
+  .node.locked{opacity:.38;cursor:default}
+  #sp-count{text-align:center;font-size:13px;color:var(--gold);letter-spacing:2px;margin-bottom:14px}
+
+  /* blacksmith */
+  #smith .panel{min-width:min(480px,92vw)}
+  .shoprow{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #2c2822;padding:11px 2px;font-size:14px}
+  .shoprow .d{font-size:11px;color:#7e7663;display:block;margin-top:2px}
+  .cost{color:var(--gold)}
+  #smith-gold{text-align:center;color:var(--gold);letter-spacing:2px;margin-bottom:14px;font-size:15px}
+
+  /* death / victory */
+  #death h1.title{color:#b03030;text-shadow:0 0 40px rgba(176,20,20,.7),0 4px 10px #000}
+  .statgrid{display:grid;grid-template-columns:auto auto;gap:7px 34px;font-size:15px;margin:24px 0;letter-spacing:1px}
+  .statgrid span:nth-child(odd){color:#8d8470}.statgrid span:nth-child(even){color:#e3d6b4;text-align:right}
+
+  /* gear readout in pause */
+  .gearlist{font-size:12px;line-height:2;letter-spacing:1px;margin:12px 0;color:#a89d84;column-count:2;column-gap:30px;min-width:380px}
+  .gearlist .r0{color:#cfc5ae}.gearlist .r1{color:var(--rare)}.gearlist .r2{color:#b06ee8}.gearlist .r3{color:var(--leg)}
+
+  /* touch controls */
+  #touch{position:fixed;inset:0;z-index:15;display:none;pointer-events:none}
+  #joy{position:absolute;left:36px;bottom:46px;width:128px;height:128px;border:2px solid rgba(207,197,174,.25);border-radius:50%;pointer-events:auto}
+  #joyknob{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:rgba(207,197,174,.22);border:1px solid rgba(207,197,174,.4)}
+  .tbtn{position:absolute;width:64px;height:64px;border-radius:50%;pointer-events:auto;border:2px solid rgba(207,197,174,.3);
+    background:rgba(20,16,12,.55);color:#d9cfb4;font-size:11px;letter-spacing:1px;display:flex;align-items:center;justify-content:center;font-family:inherit}
+  .tbtn:active{background:rgba(212,175,55,.3)}
+  #tatk{right:34px;bottom:120px;width:78px;height:78px}
+  #thvy{right:124px;bottom:60px}
+  #tdge{right:34px;bottom:230px}
+  #tblk{right:130px;bottom:160px}
+  #trge{right:222px;bottom:96px;width:54px;height:54px}
+  #tuse{right:120px;bottom:262px;width:54px;height:54px}
+
+  @media (max-width:760px){
+    .barwrap{width:200px}
+    #banner h1{font-size:26px;letter-spacing:5px}
+    .gearlist{min-width:0;column-count:1}
+  }
+</style>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="vignette"></div>
+  <div id="hurtvig"></div>
+  <div id="flash"></div>
+  <div id="numbers"></div>
+  <div id="ebars"></div>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div class="barwrap">
+      <div class="bar"><div id="hpghost"></div><div class="fill" id="hpfill"></div></div>
+      <div class="bar" id="stambar"><div class="fill" id="stamfill"></div></div>
+      <div class="bar" id="ragebar"><div class="fill" id="ragefill"></div></div>
+    </div>
+    <div id="stats-line"></div>
+    <div id="potions">
+      <div class="potion"><span class="key">1</span><span class="icon">&#10084;</span><span class="cnt" id="pot-hp">0</span></div>
+      <div class="potion"><span class="key">2</span><span class="icon">&#9889;</span><span class="cnt" id="pot-rage">0</span></div>
+    </div>
+    <div id="wavecounter"><div class="ch" id="wc-chapter"></div><div id="wc-wave"></div></div>
+    <div id="lockon-tip">TAB &mdash; lock-on</div>
+    <div id="bossbar">
+      <div id="bossname"></div>
+      <div class="bar"><div class="fill" id="bossfill"></div></div>
+      <div id="bossphase"></div>
+    </div>
+    <div id="prompt"></div>
+    <div id="banner"><h1 id="banner-h1"></h1><h2 id="banner-h2"></h2></div>
+    <div id="toasts"></div>
+  </div>
+
+  <!-- touch -->
+  <div id="touch">
+    <div id="joy"><div id="joyknob"></div></div>
+    <button class="tbtn" id="tatk">ATK</button>
+    <button class="tbtn" id="thvy">HVY</button>
+    <button class="tbtn" id="tdge">ROLL</button>
+    <button class="tbtn" id="tblk">BLK</button>
+    <button class="tbtn" id="trge">RAGE</button>
+    <button class="tbtn" id="tuse">USE</button>
+  </div>
+
+  <!-- main menu -->
+  <div id="menu" class="screen">
+    <h1 class="title">Demon's Oath</h1>
+    <div class="sub">a tale of steel and damnation</div>
+    <div class="diffrow">
+      <button class="btn diff sel" data-d="normal">Normal</button>
+      <button class="btn diff" data-d="knight">Knight</button>
+      <button class="btn diff" data-d="demon">Demon</button>
+    </div>
+    <button class="btn" id="btn-start">Begin the Oath</button>
+    <button class="btn" id="btn-continue">Continue</button>
+    <button class="btn" id="btn-loadfile">Load Save File</button>
+    <input type="file" id="filein" accept=".json" class="hidden" />
+    <div class="hint">
+      <b>WASD</b> move &nbsp; <b>Mouse</b> camera &nbsp; <b>LMB</b> light combo &nbsp; <b>RMB</b> heavy &nbsp; <b>Space</b> dodge<br/>
+      <b>Shift</b> block (time it to parry) &nbsp; <b>Q</b> rage &nbsp; <b>E</b> execute / interact &nbsp; <b>Tab</b> lock-on &nbsp; <b>K</b> skills &nbsp; <b>1/2</b> potions
+    </div>
+  </div>
+
+  <!-- pause -->
+  <div id="pause" class="screen hidden">
+    <div class="panel">
+      <h2>Paused</h2>
+      <div class="setrow"><span>Volume</span><input type="range" id="set-vol" min="0" max="1" step="0.05" value="0.7"/></div>
+      <div class="setrow"><span>Camera sensitivity</span><input type="range" id="set-sens" min="0.3" max="2.5" step="0.1" value="1"/></div>
+      <div class="setrow"><span>Screen shake</span><input type="checkbox" id="set-shake" checked/></div>
+      <div class="gearlist" id="gear-readout"></div>
+      <div style="display:flex;flex-direction:column;align-items:center">
+        <button class="btn" id="btn-resume">Resume</button>
+        <button class="btn" id="btn-skills">Skill Tree (K)</button>
+        <button class="btn" id="btn-savefile">Download Save</button>
+        <button class="btn danger" id="btn-quit">Abandon Run</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- skill tree -->
+  <div id="skillsui" class="screen hidden">
+    <div class="panel">
+      <h2>Skill Tree</h2>
+      <div id="sp-count"></div>
+      <div class="branches">
+        <div class="branch w"><h3>Warrior</h3><div id="br-warrior"></div></div>
+        <div class="branch g"><h3>Guardian</h3><div id="br-guardian"></div></div>
+        <div class="branch s"><h3>Slayer</h3><div id="br-slayer"></div></div>
+      </div>
+      <div style="text-align:center;margin-top:18px"><button class="btn small" id="btn-skills-close">Close (K)</button></div>
+    </div>
+  </div>
+
+  <!-- blacksmith -->
+  <div id="smith" class="screen hidden">
+    <div class="panel">
+      <h2>The Blacksmith</h2>
+      <div id="smith-gold"></div>
+      <div class="shoprow"><div>Reforge Weapon <span class="d" id="up-desc"></span></div><button class="btn small" id="btn-upgrade"></button></div>
+      <div class="shoprow"><div>Health Potion <span class="d">Restores 45% HP</span></div><button class="btn small" id="btn-buyhp"></button></div>
+      <div class="shoprow"><div>Rage Elixir <span class="d">Fills the rage meter</span></div><button class="btn small" id="btn-buyrage"></button></div>
+      <div style="text-align:center;margin-top:22px"><button class="btn" id="btn-smith-go">March On</button></div>
+    </div>
+  </div>
+
+  <!-- death -->
+  <div id="death" class="screen hidden">
+    <h1 class="title">You Died</h1>
+    <div class="sub" id="death-sub">the oath is not yet fulfilled</div>
+    <button class="btn" id="btn-respawn">Rise Again</button>
+  </div>
+
+  <!-- victory -->
+  <div id="victory" class="screen hidden">
+    <h1 class="title">Oath Fulfilled</h1>
+    <div class="sub">the demon lord is no more</div>
+    <div class="statgrid" id="victory-stats"></div>
+    <button class="btn" id="btn-victory-menu">Return to Title</button>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
